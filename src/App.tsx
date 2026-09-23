@@ -3,11 +3,13 @@ import { AppShell } from './components/AppShell'
 import { SplashScreen } from './components/states'
 import { DataProvider } from './data/DataProvider'
 import { MailProvider } from './data/MailProvider'
+import { NewsProvider } from './data/NewsProvider'
 import { useSession } from './data/useSession'
 import { isSupabaseConfigured } from './lib/supabase'
 import { AuthScreen } from './screens/AuthScreen'
 import { MailMessageScreen } from './screens/MailMessageScreen'
 import { MailScreen } from './screens/MailScreen'
+import { NewsScreen } from './screens/NewsScreen'
 import { NotificationsScreen } from './screens/NotificationsScreen'
 import { StubScreen } from './screens/StubScreen'
 import { SupabaseMissingScreen } from './screens/SupabaseMissingScreen'
@@ -25,6 +27,7 @@ export default function App() {
   return (
     <DataProvider>
       <MailProvider>
+        <NewsProvider>
       <HashRouter>
         <Routes>
           <Route element={<AppShell />}>
@@ -32,17 +35,7 @@ export default function App() {
             <Route path="/tasks" element={<TasksScreen />} />
             <Route path="/settings" element={<NotificationsScreen />} />
             <Route path="/mail" element={<MailScreen />} />
-            <Route
-              path="/news"
-              element={
-                <StubScreen
-                  title="Новости"
-                  stage={4}
-                  icon="news"
-                  description="Короткий дайджест по вашим темам появится на этапе 4."
-                />
-              }
-            />
+            <Route path="/news" element={<NewsScreen />} />
             <Route
               path="/habits"
               element={
@@ -61,6 +54,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
+        </NewsProvider>
       </MailProvider>
     </DataProvider>
   )

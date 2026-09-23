@@ -64,6 +64,28 @@ export interface MailMessage {
   archivedAt: string | null
 }
 
+export interface NewsSource {
+  id: string
+  key: string
+  topic: string
+  title: string
+  enabled: boolean
+  lastFetchAt: string | null
+  lastStatus: 'ok' | 'error' | null
+  lastError: string | null
+}
+
+export interface NewsItem {
+  id: string
+  sourceId: string
+  topic: string
+  title: string
+  url: string
+  summary: string | null
+  publishedAt: string
+  readAt: string | null
+}
+
 export interface TaskDraft {
   title: string
   note: string | null

@@ -1,0 +1,162 @@
+{
+  "sources": [
+    {
+      "key": "epepper",
+      "topic": "ozon",
+      "title": "E-pepper",
+      "feedUrl": "https://e-pepper.ru/rss",
+      "enabled": true,
+      "include": ["ozon", "озон", "маркетплейс", "селлер", "продавц"]
+    },
+    {
+      "key": "retailru",
+      "topic": "ozon",
+      "title": "Retail.ru",
+      "feedUrl": "https://www.retail.ru/rss/news/",
+      "enabled": true,
+      "include": ["ozon", "озон", "маркетплейс", "селлер", "продавц"]
+    },
+    {
+      "key": "kolesa",
+      "topic": "cars",
+      "title": "Kolesa.ru",
+      "feedUrl": "https://www.kolesa.ru/rss",
+      "enabled": true,
+      "include": [
+        "chery",
+        "чери",
+        "haval",
+        "хавал",
+        "geely",
+        "джили",
+        "exeed",
+        "эксид",
+        "omoda",
+        "омода",
+        "jaecoo",
+        "changan",
+        "чанган",
+        "byd",
+        "jetour",
+        "джетур",
+        "tank",
+        "great wall",
+        "китайск"
+      ]
+    },
+    {
+      "key": "quto",
+      "topic": "cars",
+      "title": "Quto.ru",
+      "feedUrl": "https://quto.ru/rss.xml",
+      "enabled": true,
+      "include": [
+        "chery",
+        "чери",
+        "haval",
+        "хавал",
+        "geely",
+        "джили",
+        "exeed",
+        "omoda",
+        "jaecoo",
+        "changan",
+        "byd",
+        "jetour",
+        "great wall",
+        "китайск"
+      ]
+    },
+    {
+      "key": "4pda",
+      "topic": "gadgets",
+      "title": "4PDA",
+      "feedUrl": "https://4pda.to/feed/",
+      "enabled": true
+    },
+    {
+      "key": "hitechmail",
+      "topic": "gadgets",
+      "title": "Hi-Tech Mail",
+      "feedUrl": "https://hi-tech.mail.ru/rss/all/",
+      "enabled": true
+    },
+    {
+      "key": "3dnews",
+      "topic": "gadgets",
+      "title": "3DNews",
+      "feedUrl": "https://3dnews.ru/news/rss/",
+      "enabled": true
+    },
+    {
+      "key": "3dtoday",
+      "topic": "print3d",
+      "title": "3DToday",
+      "feedUrl": "https://3dtoday.ru/rss/",
+      "enabled": true
+    },
+    {
+      "key": "3dpulse",
+      "topic": "print3d",
+      "title": "3D Pulse",
+      "feedUrl": "https://3dpulse.ru/rss",
+      "enabled": true
+    },
+    {
+      "key": "filmru",
+      "topic": "cinema",
+      "title": "Film.ru",
+      "feedUrl": "https://www.film.ru/rss",
+      "enabled": true
+    },
+    {
+      "key": "lenta-culture",
+      "topic": "cinema",
+      "title": "Lenta.ru: Культура",
+      "feedUrl": "https://lenta.ru/rss/news/culture",
+      "enabled": true
+    },
+    {
+      "key": "habr-ai",
+      "topic": "ai",
+      "title": "Habr: искусственный интеллект",
+      "feedUrl": "https://habr.com/ru/rss/hub/artificial_intelligence/articles/?fl=ru",
+      "enabled": true
+    },
+    {
+      "key": "hightech",
+      "topic": "ai",
+      "title": "Хайтек",
+      "feedUrl": "https://hightech.fm/feed",
+      "enabled": true
+    },
+    {
+      "key": "kommersant-economics",
+      "topic": "finance",
+      "title": "Коммерсантъ: экономика",
+      "feedUrl": "https://www.kommersant.ru/RSS/section-economics.xml",
+      "enabled": true
+    },
+    {
+      "key": "bankiru",
+      "topic": "finance",
+      "title": "Банки.ру",
+      "feedUrl": "https://www.banki.ru/xml/news.rss",
+      "enabled": true
+    },
+    {
+      "key": "interfax",
+      "topic": "world",
+      "title": "Интерфакс",
+      "feedUrl": "https://www.interfax.ru/rss.asp",
+      "enabled": true
+    },
+    {
+      "key": "lenta-world",
+      "topic": "world",
+      "title": "Lenta.ru: Мир",
+      "feedUrl": "https://lenta.ru/rss/news/world",
+      "enabled": true
+    }
+  ]
+}

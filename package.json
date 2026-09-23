@@ -14,7 +14,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "deploy": "npm run build && gh-pages -d dist -m \"обновление сайта\"",
     "vapid": "node scripts/generate-vapid.mjs",
-    "mail": "node scripts/fetch-mail.mjs"
+    "mail": "node scripts/fetch-mail.mjs",
+    "news": "node scripts/fetch-news.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
