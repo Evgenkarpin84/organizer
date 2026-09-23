@@ -13,11 +13,13 @@
     "lint": "eslint .",
     "icons": "node scripts/generate-icons.mjs",
     "deploy": "npm run build && gh-pages -d dist -m \"обновление сайта\"",
-    "vapid": "node scripts/generate-vapid.mjs"
+    "vapid": "node scripts/generate-vapid.mjs",
+    "mail": "node scripts/fetch-mail.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "date-fns": "^4.4.0",
+    "imapflow": "^2.0.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4"

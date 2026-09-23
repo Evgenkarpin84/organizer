@@ -2,9 +2,12 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { SplashScreen } from './components/states'
 import { DataProvider } from './data/DataProvider'
+import { MailProvider } from './data/MailProvider'
 import { useSession } from './data/useSession'
 import { isSupabaseConfigured } from './lib/supabase'
 import { AuthScreen } from './screens/AuthScreen'
+import { MailMessageScreen } from './screens/MailMessageScreen'
+import { MailScreen } from './screens/MailScreen'
 import { NotificationsScreen } from './screens/NotificationsScreen'
 import { StubScreen } from './screens/StubScreen'
 import { SupabaseMissingScreen } from './screens/SupabaseMissingScreen'
@@ -21,23 +24,14 @@ export default function App() {
 
   return (
     <DataProvider>
+      <MailProvider>
       <HashRouter>
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<TodayScreen />} />
             <Route path="/tasks" element={<TasksScreen />} />
             <Route path="/settings" element={<NotificationsScreen />} />
-            <Route
-              path="/mail"
-              element={
-                <StubScreen
-                  title="Почта"
-                  stage={3}
-                  icon="mail"
-                  description="Разбор писем, черновики ответов и задачи из писем появятся на этапе 3."
-                />
-              }
-            />
+            <Route path="/mail" element={<MailScreen />} />
             <Route
               path="/news"
               element={
@@ -61,11 +55,13 @@ export default function App() {
               }
             />
           </Route>
+          <Route path="/mail/:id" element={<MailMessageScreen />} />
           <Route path="/task/new" element={<TaskEditorScreen />} />
           <Route path="/task/:id" element={<TaskEditorScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </HashRouter>
+      </MailProvider>
     </DataProvider>
   )
 }

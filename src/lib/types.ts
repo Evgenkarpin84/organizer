@@ -36,6 +36,34 @@ export interface Task extends RepeatRule {
   createdAt: string
 }
 
+export interface MailAccount {
+  id: string
+  key: string
+  label: string
+  email: string
+  provider: 'mailru' | 'yandex'
+  lastSyncAt: string | null
+  lastError: string | null
+}
+
+export interface MailMessage {
+  id: string
+  accountId: string
+  subject: string | null
+  fromName: string | null
+  fromEmail: string | null
+  sentAt: string | null
+  receivedAt: string
+  preview: string | null
+  bodyText: string | null
+  bodyTruncated: boolean
+  hasAttachments: boolean
+  attachmentNames: string[]
+  isBulk: boolean
+  readAt: string | null
+  archivedAt: string | null
+}
+
 export interface TaskDraft {
   title: string
   note: string | null

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { ListPicker } from '../components/ListChips'
 import { FOCUS_RING, SplashScreen } from '../components/states'
@@ -49,7 +49,10 @@ export function TaskEditorScreen() {
   const todayIso = todayISO()
 
   const existing = useMemo(() => (id ? (tasks.find((task) => task.id === id) ?? null) : null), [id, tasks])
-  const [draft, setDraft] = useState<TaskDraft | null>(() => (id ? null : emptyDraft()))
+  // Черновик может прийти из другого экрана — например, «Создать задачу» из письма.
+  const location = useLocation()
+  const incomingDraft = (location.state as { draft?: TaskDraft } | null)?.draft ?? null
+  const [draft, setDraft] = useState<TaskDraft | null>(() => (id ? null : (incomingDraft ?? emptyDraft())))
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
