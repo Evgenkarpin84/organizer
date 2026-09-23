@@ -46,6 +46,29 @@ describe('карточка задачи', () => {
     expect(onOpen).toHaveBeenCalledWith(task)
   })
 
+  it('показывает отметку напоминания у активной задачи и прячет у вхождения повтора', () => {
+    const task = makeTask({
+      title: 'Отчёт',
+      dueDate: TODAY,
+      dueTime: '18:00',
+      remindAt: new Date(2026, 8, 16, 17, 0).toISOString(),
+    })
+    const { unmount } = render(
+      <ul>
+        <TaskItem task={task} lists={lists} todayIso={TODAY} onOpen={() => {}} />
+      </ul>,
+    )
+    expect(screen.getByText('за час')).toBeInTheDocument()
+    unmount()
+
+    render(
+      <ul>
+        <TaskItem task={task} lists={lists} todayIso={TODAY} virtual onOpen={() => {}} />
+      </ul>,
+    )
+    expect(screen.queryByText('за час')).not.toBeInTheDocument()
+  })
+
   it('повторяющуюся задачу, отмеченную сегодня, нельзя отметить ещё раз', () => {
     const task = makeTask({
       title: 'Зарядка',

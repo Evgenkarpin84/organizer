@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { ListPicker } from '../components/ListChips'
 import { FOCUS_RING, SplashScreen } from '../components/states'
 import { useData } from '../data/dataContext'
-import { addDaysISO, formatDueLabel, parseISODate, todayISO, weekdayOf } from '../lib/dates'
+import { addDaysISO, formatDueLabel, parseISODate, toISODate, todayISO, weekdayOf } from '../lib/dates'
+import {
+  computeRemindAt,
+  describeReminderOffset,
+  dueMoment,
+  formatReminderMoment,
+  isPresetOffset,
+  MAX_OFFSET_MINUTES,
+  offsetFromRemindAt,
+  REMINDER_CHOICES,
+  type ReminderChoice,
+} from '../lib/reminders'
 import { PRIORITY_DOT, PRIORITY_LABELS, WEEKDAY_LABELS } from '../lib/labels'
 import { emptyDraft, type Priority, type RepeatType, type Task, type TaskDraft } from '../lib/types'
 
@@ -27,6 +38,7 @@ function draftFromTask(task: Task): TaskDraft {
     repeatInterval: task.repeatInterval,
     repeatWeekdays: task.repeatWeekdays,
     repeatDayOfMonth: task.repeatDayOfMonth,
+    remindOffsetMinutes: offsetFromRemindAt(task.dueDate, task.dueTime, task.remindAt),
   }
 }
 
@@ -41,10 +53,18 @@ export function TaskEditorScreen() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [customMode, setCustomMode] = useState(false)
+  const [customError, setCustomError] = useState<string | null>(null)
+  const dueDateRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (id && !draft && existing) setDraft(draftFromTask(existing))
   }, [id, draft, existing])
+
+  useEffect(() => {
+    const offset = draft?.remindOffsetMinutes ?? null
+    if (offset !== null && !isPresetOffset(offset)) setCustomMode(true)
+  }, [draft])
 
   if (!draft) {
     if (loading || existing) return <SplashScreen />
@@ -63,6 +83,49 @@ export function TaskEditorScreen() {
   }
 
   const update = (patch: Partial<TaskDraft>) => setDraft((prev) => (prev ? { ...prev, ...patch } : prev))
+
+  const remindAt = computeRemindAt(draft.dueDate, draft.dueTime, draft.remindOffsetMinutes)
+  const remindMoment = remindAt ? new Date(remindAt) : null
+  const remindInPast = remindMoment ? remindMoment.getTime() < Date.now() : false
+  const customDate = remindMoment ? toISODate(remindMoment) : ''
+  const customTime = remindMoment
+    ? `${String(remindMoment.getHours()).padStart(2, '0')}:${String(remindMoment.getMinutes()).padStart(2, '0')}`
+    : ''
+  const notificationsReady = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  // Без выбранного напоминания режим «своё время» не активен: иначе после снятия срока
+  // одновременно подсвечивались бы «Нет» и «Своё время», а пустые поля ничего не меняли.
+  const customActive = customMode && draft.remindOffsetMinutes !== null
+
+  const pickReminder = (choice: ReminderChoice) => {
+    setCustomError(null)
+    if (choice.kind === 'none') {
+      setCustomMode(false)
+      update({ remindOffsetMinutes: null })
+      return
+    }
+    if (choice.kind === 'preset') {
+      setCustomMode(false)
+      update({ remindOffsetMinutes: choice.minutes })
+      return
+    }
+    setCustomMode(true)
+    update({ remindOffsetMinutes: draft.remindOffsetMinutes ?? 60 })
+  }
+
+  const applyCustomReminder = (dateValue: string, timeValue: string) => {
+    const due = dueMoment(draft.dueDate, draft.dueTime)
+    if (!due || !dateValue || !timeValue) return
+    const [year, month, day] = dateValue.split('-').map(Number)
+    const [hours, minutes] = timeValue.split(':').map(Number)
+    const chosen = new Date(year, month - 1, day, hours, minutes, 0, 0)
+    const offset = Math.round((due.getTime() - chosen.getTime()) / 60_000)
+    if (Math.abs(offset) > MAX_OFFSET_MINUTES) {
+      setCustomError('Напоминание должно быть в пределах 30 дней от срока')
+      return
+    }
+    setCustomError(null)
+    update({ remindOffsetMinutes: offset })
+  }
 
   const setRepeat = (repeatType: RepeatType) => {
     const dueDate = draft.dueDate ?? (repeatType === 'none' ? null : todayIso)
@@ -199,7 +262,14 @@ export function TaskEditorScreen() {
               <button
                 key={label}
                 type="button"
-                onClick={() => update({ dueDate: date, dueTime: date ? draft.dueTime : null })}
+                onClick={() =>
+                  update({
+                    dueDate: date,
+                    dueTime: date ? draft.dueTime : null,
+                    // Без срока напоминание невозможно — снимаем его вместе с датой.
+                    remindOffsetMinutes: date ? draft.remindOffsetMinutes : null,
+                  })
+                }
                 className={`h-10 rounded-lg border px-3 text-sm ${FOCUS_RING} ${
                   draft.dueDate === date ? 'border-transparent bg-slate-900 text-white' : 'border-slate-300 bg-white'
                 }`}
@@ -209,10 +279,16 @@ export function TaskEditorScreen() {
             ))}
           </div>
           <input
+            ref={dueDateRef}
             type="date"
             aria-label="Дата срока"
             value={draft.dueDate ?? ''}
-            onChange={(event) => update({ dueDate: event.target.value || null })}
+            onChange={(event) =>
+              update({
+                dueDate: event.target.value || null,
+                remindOffsetMinutes: event.target.value ? draft.remindOffsetMinutes : null,
+              })
+            }
             className="h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base"
           />
           {draft.dueDate ? (
@@ -235,6 +311,101 @@ export function TaskEditorScreen() {
               ) : null}
             </div>
           ) : null}
+        </div>
+
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500" id="remind-label">
+            Напоминание
+          </p>
+
+          {draft.dueDate ? (
+            <>
+              <div role="group" aria-labelledby="remind-label" className="flex flex-wrap gap-2">
+                {REMINDER_CHOICES.map((choice) => {
+                  const active =
+                    choice.kind === 'none'
+                      ? draft.remindOffsetMinutes === null
+                      : choice.kind === 'custom'
+                        ? customActive
+                        : !customActive && draft.remindOffsetMinutes === choice.minutes
+                  return (
+                    <button
+                      key={choice.key}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => pickReminder(choice)}
+                      className={`inline-flex h-11 items-center gap-2 rounded-full border px-3 text-sm ${FOCUS_RING} ${
+                        active
+                          ? 'border-transparent bg-slate-900 text-white'
+                          : 'border-slate-300 bg-white text-slate-700'
+                      }`}
+                    >
+                      {choice.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {customActive ? (
+                <>
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="date"
+                      aria-label="Дата напоминания"
+                      value={customDate}
+                      onChange={(event) => applyCustomReminder(event.target.value, customTime)}
+                      className="h-12 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-base"
+                    />
+                    <input
+                      type="time"
+                      aria-label="Время напоминания"
+                      value={customTime}
+                      onChange={(event) => applyCustomReminder(customDate, event.target.value)}
+                      className="h-12 w-28 rounded-xl border border-slate-300 bg-white px-3 text-base"
+                    />
+                  </div>
+                  {customError ? <p className="mt-1 text-xs text-rose-600">{customError}</p> : null}
+                </>
+              ) : null}
+
+              {draft.remindOffsetMinutes !== null && remindAt ? (
+                remindInPast ? (
+                  <p role="status" className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900">
+                    Это время уже прошло — уведомление не придёт. Задача сохранится.
+                  </p>
+                ) : (
+                  <p aria-live="polite" className="mt-2 text-xs text-slate-500">
+                    Напомним {formatReminderMoment(remindAt)}
+                    {customActive ? ` · ${describeReminderOffset(draft.remindOffsetMinutes)}` : ''}
+                  </p>
+                )
+              ) : null}
+
+              {draft.remindOffsetMinutes !== null && !draft.dueTime ? (
+                <p className="mt-1 text-xs text-slate-500">Время срока не задано, считаем 09:00.</p>
+              ) : null}
+
+              {draft.remindOffsetMinutes !== null && !notificationsReady ? (
+                <p className="mt-2 text-xs text-slate-500">
+                  Напоминание сохранится, но уведомления на этом устройстве выключены.{' '}
+                  <Link to="/settings" className={`font-medium text-blue-600 ${FOCUS_RING}`}>
+                    Включить
+                  </Link>
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">
+              Напоминание можно поставить, когда задан срок.{' '}
+              <button
+                type="button"
+                onClick={() => dueDateRef.current?.focus()}
+                className={`h-11 rounded-lg align-middle text-sm font-medium text-blue-600 ${FOCUS_RING}`}
+              >
+                Задать дату
+              </button>
+            </p>
+          )}
         </div>
 
         <div>

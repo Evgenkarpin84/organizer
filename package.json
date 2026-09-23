@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "icons": "node scripts/generate-icons.mjs",
-    "deploy": "npm run build && gh-pages -d dist -m \"обновление сайта\""
+    "deploy": "npm run build && gh-pages -d dist -m \"обновление сайта\"",
+    "vapid": "node scripts/generate-vapid.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

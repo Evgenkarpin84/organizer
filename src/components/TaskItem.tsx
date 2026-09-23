@@ -2,6 +2,7 @@ import { formatDueLabel } from '../lib/dates'
 import { isDoneToday } from '../lib/grouping'
 import { LIST_COLORS, PRIORITY_DOT, PRIORITY_LABELS } from '../lib/labels'
 import { describeRepeat } from '../lib/recurrence'
+import { formatReminderMoment, offsetFromRemindAt, shortReminderLabel } from '../lib/reminders'
 import type { Task, TaskList } from '../lib/types'
 import { Icon } from './Icon'
 import { FOCUS_RING } from './states'
@@ -33,6 +34,9 @@ export function TaskItem({
   const overdue = !done && task.dueDate !== null && task.dueDate < todayIso
   const dueLabel = formatDueLabel(task.dueDate, task.dueTime, todayIso)
   const repeatLabel = describeRepeat(task)
+  // По выполненным и по вхождениям повтора уведомление не придёт — отметку не показываем.
+  const reminderLabel =
+    virtual || done ? null : shortReminderLabel(offsetFromRemindAt(task.dueDate, task.dueTime, task.remindAt))
   const dueClass = overdue ? 'font-medium text-rose-600' : task.dueDate === todayIso ? 'text-blue-700' : 'text-slate-500'
 
   return (
@@ -99,6 +103,13 @@ export function TaskItem({
             </span>
           ) : null}
           {repeatLabel ? <span className="text-slate-500">↻ {repeatLabel}</span> : null}
+          {reminderLabel ? (
+            <span className="inline-flex items-center gap-1 text-slate-500">
+              <Icon name="bell" className="h-3.5 w-3.5" />
+              {reminderLabel}
+              <span className="sr-only">Напоминание: {formatReminderMoment(task.remindAt)}</span>
+            </span>
+          ) : null}
           {virtual ? (
             <span className="text-slate-400">Ближайший срок: {formatDueLabel(task.dueDate, null, todayIso)}</span>
           ) : null}

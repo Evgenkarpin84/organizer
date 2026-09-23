@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', 'public'] },
+  // index.ts функции написан под Deno: свои глобальные объекты и импорты по jsr-спецификаторам.
+  { ignores: ['dist', 'dev-dist', 'coverage', 'node_modules', 'public', 'supabase/functions/**/index.ts'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

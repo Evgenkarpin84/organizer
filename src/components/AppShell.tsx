@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useOnline } from '../data/useOnline'
 import { supabase } from '../lib/supabase'
 import { BottomNav } from './BottomNav'
@@ -11,6 +11,7 @@ const TITLES: Record<string, string> = {
   '/mail': 'Почта',
   '/news': 'Новости',
   '/habits': 'Привычки',
+  '/settings': 'Уведомления',
 }
 
 export function AppShell() {
@@ -22,6 +23,15 @@ export function AppShell() {
     <div className="flex min-h-full flex-col bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center gap-2 border-b border-slate-200 bg-white/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur">
         <h1 className="flex-1 truncate text-lg font-semibold">{title}</h1>
+        {location.pathname === '/settings' ? null : (
+          <Link
+            to="/settings"
+            aria-label="Настройки уведомлений"
+            className={`flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 ${FOCUS_RING}`}
+          >
+            <Icon name="settings" />
+          </Link>
+        )}
         <button
           type="button"
           onClick={() => void supabase?.auth.signOut()}

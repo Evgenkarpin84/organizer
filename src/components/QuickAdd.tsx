@@ -51,6 +51,7 @@ export function QuickAdd({
         repeatInterval: parsed.repeatInterval,
         repeatWeekdays: parsed.repeatWeekdays,
         repeatDayOfMonth: parsed.repeatDayOfMonth,
+        remindOffsetMinutes: null,
       })
       setValue('')
     } catch (cause) {

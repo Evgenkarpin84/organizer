@@ -1,3 +1,4 @@
+import { computeRemindAt } from '../lib/reminders'
 import { requireSupabase } from '../lib/supabase'
 import type { ListColor, Priority, RepeatType, Task, TaskDraft, TaskList } from '../lib/types'
 
@@ -99,6 +100,8 @@ function draftToPatch(draft: TaskDraft): TaskPatch {
     repeatInterval: draft.repeatInterval,
     repeatWeekdays: draft.repeatWeekdays,
     repeatDayOfMonth: draft.repeatDayOfMonth,
+    // Момент напоминания считается из срока и смещения: отдельной колонки под смещение нет.
+    remindAt: computeRemindAt(draft.dueDate, draft.dueTime, draft.remindOffsetMinutes),
   }
 }
 

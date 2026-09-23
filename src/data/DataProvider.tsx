@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { buildCompletionPatch } from '../lib/completion'
 import { todayISO } from '../lib/dates'
-import { isDoneToday } from '../lib/grouping'
-import { nextDueDateAfterCompletion } from '../lib/recurrence'
 import type { ListColor, Task, TaskDraft, TaskList } from '../lib/types'
 import { DataContext, type DataContextValue } from './dataContext'
 import * as repo from './tasksRepo'
@@ -63,16 +62,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       },
       toggleTask: async (task: Task) => {
         try {
-          const now = new Date().toISOString()
-          if (task.repeatType !== 'none') {
-            const today = todayISO()
-            // Повторная отметка сдвинула бы срок ещё на период, отменить это нельзя.
-            if (isDoneToday(task, today)) return
-            const nextDue = nextDueDateAfterCompletion(task, today)
-            replaceTask(await repo.updateTask(task.id, { dueDate: nextDue, lastCompletedAt: now }))
-            return
-          }
-          replaceTask(await repo.updateTask(task.id, { completedAt: task.completedAt ? null : now }))
+          // Патч считает чистая функция: перенос срока повтора вместе с напоминанием и защита
+          // от повторной отметки живут там же и покрыты тестами.
+          const patch = buildCompletionPatch(task, todayISO(), new Date().toISOString())
+          if (!patch) return
+          replaceTask(await repo.updateTask(task.id, patch))
         } catch (cause) {
           console.error(cause)
           setError('Не удалось отметить задачу. Попробуйте ещё раз.')

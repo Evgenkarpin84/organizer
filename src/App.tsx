@@ -5,6 +5,7 @@ import { DataProvider } from './data/DataProvider'
 import { useSession } from './data/useSession'
 import { isSupabaseConfigured } from './lib/supabase'
 import { AuthScreen } from './screens/AuthScreen'
+import { NotificationsScreen } from './screens/NotificationsScreen'
 import { StubScreen } from './screens/StubScreen'
 import { SupabaseMissingScreen } from './screens/SupabaseMissingScreen'
 import { TaskEditorScreen } from './screens/TaskEditorScreen'
@@ -25,6 +26,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="/" element={<TodayScreen />} />
             <Route path="/tasks" element={<TasksScreen />} />
+            <Route path="/settings" element={<NotificationsScreen />} />
             <Route
               path="/mail"
               element={

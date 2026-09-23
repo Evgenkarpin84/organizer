@@ -27,6 +27,24 @@ npm run dev
 3. **Закрыть регистрацию.** Authentication → Sign In / Providers → Email → выключить «Allow new users to sign up».
 4. **Вход по паролю.** Приложение использует `signInWithPassword`, письма Supabase не задействованы. Причина: на бесплатном тарифе шаблоны писем нельзя редактировать без своего SMTP («Set up custom SMTP to edit templates»), а у встроенной почты жёсткий лимит на письма. Вход по коду вернётся, когда будет подключён SMTP — пункт есть в `BACKLOG.md`. Сменить пароль: Authentication → Users → пользователь → Reset password. Ссылка на Android открывается в браузере, а не в установленном приложении, поэтому вход сделан по коду.
 
+## Push-напоминания
+
+Напоминания рассылает Supabase, поэтому они приходят и при выключенном компьютере: `pg_cron` раз в минуту дёргает Edge Function `send-reminders`, та отправляет Web Push по VAPID.
+
+1. **Ключи VAPID.** Выполнить `npm run vapid`. Публичный ключ положить в `.env` как `VITE_VAPID_PUBLIC_KEY`, приватный — только в секреты функции, в репозиторий он не попадает.
+2. **Схема.** Выполнить `supabase/migrations/0002_push_reminders.sql` в SQL Editor: таблица `push_subscriptions` с RLS, колонки `remind_sent_at` и `remind_sent_for`, индекс. Секция с расписанием в конце файла закомментирована — она запускается отдельно на шаге 5.
+3. **Секреты функции.** В настройках Edge Functions задать `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (вида `mailto:почта@владельца`) и `REMINDERS_CRON_SECRET` (случайная строка).
+4. **Деплой функции:**
+   ```bash
+   npx supabase functions deploy send-reminders --no-verify-jwt
+   ```
+   Проверка JWT отключена намеренно: вызов идёт из `pg_cron`, доступ закрывает секрет в заголовке `x-cron-secret`.
+5. **Расписание.** Раскомментировать секцию в конце миграции, подставив идентификатор проекта и значение `REMINDERS_CRON_SECRET`, и выполнить её. Отключается командой `select cron.unschedule('send-reminders');`, журнал запусков — в `cron.job_run_details`.
+6. **Сборка и публикация:** `npm run deploy` — публичный ключ попадёт в бандл.
+7. **На телефоне:** открыть приложение → шестерёнка в шапке → «Включить уведомления».
+
+Без `VITE_VAPID_PUBLIC_KEY` приложение работает как обычно, а экран «Уведомления» показывает состояние «Push не настроен».
+
 ## Команды
 
 | Команда | Что делает |

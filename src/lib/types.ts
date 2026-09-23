@@ -47,6 +47,8 @@ export interface TaskDraft {
   repeatInterval: number
   repeatWeekdays: number[]
   repeatDayOfMonth: number | null
+  /** Смещение напоминания в минутах до срока; null — напоминания нет. */
+  remindOffsetMinutes: number | null
 }
 
 export function emptyDraft(): TaskDraft {
@@ -61,5 +63,6 @@ export function emptyDraft(): TaskDraft {
     repeatInterval: 1,
     repeatWeekdays: [],
     repeatDayOfMonth: null,
+    remindOffsetMinutes: null,
   }
 }
