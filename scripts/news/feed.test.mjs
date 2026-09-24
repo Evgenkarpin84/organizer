@@ -4,6 +4,7 @@ import {
   clampText,
   decodeBody,
   dedupeKey,
+  isEmptyConditionalReply,
   matchesKeywords,
   normalizeUrl,
   parseFeed,
@@ -208,5 +209,21 @@ describe('строка публикации для базы', () => {
       ].sort(),
     )
     expect(row.url_hash).toBe(urlHash('https://kolesa.ru/news/chery'))
+  })
+})
+
+describe('пустой ответ на условный запрос', () => {
+  const empty = new TextEncoder().encode('   ')
+
+  it('считается «без изменений», если запрос был условным', () => {
+    expect(isEmptyConditionalReply(empty, true)).toBe(true)
+  })
+
+  it('без условных заголовков пустота остаётся ошибкой ленты', () => {
+    expect(isEmptyConditionalReply(empty, false)).toBe(false)
+  })
+
+  it('непустое тело разбирается как обычно', () => {
+    expect(isEmptyConditionalReply(new TextEncoder().encode('<rss></rss>'), true)).toBe(false)
   })
 })

@@ -90,6 +90,15 @@ export function resolveArticleUrl(raw, feedUrl = null) {
 }
 
 /** RSS 2.0 и Atom. На битом ответе возвращает пустой список и текст ошибки. */
+/**
+ * Пустой ответ на условный запрос — это «без изменений»: часть серверов (например, Oborot.ru)
+ * на совпавший ETag отвечает 200 без тела вместо 304.
+ */
+export function isEmptyConditionalReply(bytes, conditional) {
+  if (!conditional) return false
+  return new TextDecoder('utf-8').decode(bytes).trim() === ''
+}
+
 export function parseFeed(xml, { now = new Date(), feedUrl = null } = {}) {
   const text = String(xml ?? '')
   if (!/<(rss|feed|rdf:RDF)[\s>]/i.test(text) && !/<(item|entry)[\s>]/i.test(text)) {

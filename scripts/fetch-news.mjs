@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { parseArgs, parseSources, readOptions, topicTitle, TOPICS } from './news/config.mjs'
-import { buildItemRow, decodeBody, matchesKeywords, parseFeed, selectItems } from './news/feed.mjs'
+import { buildItemRow, decodeBody, isEmptyConditionalReply, matchesKeywords, parseFeed, selectItems } from './news/feed.mjs'
 import { loadSources, saveSourceState, upsertItems } from './news/store.mjs'
 
 const SOURCES_PATH = resolve(dirname(fileURLToPath(import.meta.url)), 'news', 'sources.json')
@@ -61,6 +61,11 @@ async function loadFeed(source, state) {
   }
 
   const buffer = Buffer.concat(chunks)
+  const conditional = Boolean(headers['If-None-Match'] || headers['If-Modified-Since'])
+  if (isEmptyConditionalReply(buffer, conditional)) {
+    return { notModified: true, items: [], etag: state?.http_etag ?? null, lastModified: state?.http_last_modified ?? null }
+  }
+
   const text = decodeBody(buffer, response.headers.get('content-type') ?? '')
   const parsed = parseFeed(text, { feedUrl: source.feedUrl })
   if (parsed.error) throw new Error(parsed.error)
