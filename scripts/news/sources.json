@@ -1,10 +1,10 @@
 {
   "sources": [
     {
-      "key": "epepper",
+      "key": "oborot",
       "topic": "ozon",
-      "title": "E-pepper",
-      "feedUrl": "https://e-pepper.ru/rss",
+      "title": "Oborot.ru",
+      "feedUrl": "https://oborot.ru/feed/",
       "enabled": true,
       "include": ["ozon", "озон", "маркетплейс", "селлер", "продавц"]
     },
@@ -45,10 +45,10 @@
       ]
     },
     {
-      "key": "quto",
+      "key": "motor",
       "topic": "cars",
-      "title": "Quto.ru",
-      "feedUrl": "https://quto.ru/rss.xml",
+      "title": "Motor.ru",
+      "feedUrl": "https://motor.ru/export/rss",
       "enabled": true,
       "include": [
         "chery",
@@ -96,17 +96,17 @@
       "enabled": true
     },
     {
-      "key": "3dpulse",
+      "key": "habr-3d",
       "topic": "print3d",
-      "title": "3D Pulse",
-      "feedUrl": "https://3dpulse.ru/rss",
+      "title": "Habr: 3D-принтеры",
+      "feedUrl": "https://habr.com/ru/rss/hubs/3d-printers/articles/?fl=ru",
       "enabled": true
     },
     {
       "key": "filmru",
       "topic": "cinema",
       "title": "Film.ru",
-      "feedUrl": "https://www.film.ru/rss",
+      "feedUrl": "https://www.film.ru/rss.xml",
       "enabled": true
     },
     {
@@ -120,7 +120,7 @@
       "key": "habr-ai",
       "topic": "ai",
       "title": "Habr: искусственный интеллект",
-      "feedUrl": "https://habr.com/ru/rss/hub/artificial_intelligence/articles/?fl=ru",
+      "feedUrl": "https://habr.com/ru/rss/hubs/artificial_intelligence/articles/?fl=ru",
       "enabled": true
     },
     {
@@ -138,10 +138,10 @@
       "enabled": true
     },
     {
-      "key": "bankiru",
+      "key": "frank",
       "topic": "finance",
-      "title": "Банки.ру",
-      "feedUrl": "https://www.banki.ru/xml/news.rss",
+      "title": "Frank Media",
+      "feedUrl": "https://frankmedia.ru/feed",
       "enabled": true
     },
     {
