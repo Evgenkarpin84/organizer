@@ -33,6 +33,18 @@ export function fetchRange(state, { mailboxUidValidity, backfillDays = 30, now =
   return { mode: 'since', range: null, since, reset: savedValidity !== null && !sameMailbox }
 }
 
+/**
+ * Какие письма забирать из найденных поиском: старые первыми, не больше limit.
+ * Диапазон `43:*` по стандарту IMAP отдаёт последнее письмо, даже когда новых нет,
+ * поэтому в режиме по UID уже забранное отсекается явно.
+ */
+export function selectUids(found, { mode, lastUid = 0, limit }) {
+  const floor = mode === 'uid' ? Number(lastUid ?? 0) : 0
+  const unique = [...new Set((Array.isArray(found) ? found : []).map(Number))].filter((uid) => Number.isInteger(uid) && uid > floor)
+  unique.sort((a, b) => a - b)
+  return unique.slice(0, limit)
+}
+
 function flattenParts(node, collected = []) {
   if (!node) return collected
   if (Array.isArray(node.childNodes) && node.childNodes.length > 0) {

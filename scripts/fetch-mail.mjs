@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { ImapFlow } from 'imapflow'
 import { maskSecrets, parseAccounts, parseArgs, providerTitle, readOptions } from './mail/config.mjs'
-import { buildMessageRow, fetchRange, htmlToPlainText, parseHeaderLines, textPartStatus } from './mail/message.mjs'
+import { buildMessageRow, fetchRange, htmlToPlainText, parseHeaderLines, selectUids, textPartStatus } from './mail/message.mjs'
 import { loadAccounts, saveAccountError, saveAccountState, upsertMessages } from './mail/store.mjs'
 
 const HEADER_FIELDS = ['list-unsubscribe', 'list-id', 'precedence']
@@ -58,7 +58,12 @@ async function syncAccount({ client, account, accountRow, options, runtime, nowI
     )
 
     const limit = options.limit ?? runtime.maxPerRun
-    const range = plan.mode === 'uid' ? plan.range : { since: plan.since }
+    const search = plan.mode === 'uid' ? { uid: plan.range } : { since: plan.since }
+    const uids = selectUids(await imap.search(search, { uid: true }), {
+      mode: plan.mode,
+      lastUid: accountRow?.last_uid,
+      limit,
+    })
     const query = {
       uid: true,
       flags: true,
@@ -72,9 +77,11 @@ async function syncAccount({ client, account, accountRow, options, runtime, nowI
     const rows = []
     let maxUid = plan.reset || plan.mode === 'since' ? 0 : Number(accountRow?.last_uid ?? 0)
 
-    for await (const message of imap.fetch(range, query, { uid: true })) {
-      if (rows.length >= limit) break
+    // imapflow выполняет команды по очереди: download внутри цикла fetch ждал бы конца FETCH,
+    // а FETCH — следующего шага цикла, и процесс молча завершался. Поэтому сначала заголовки, потом тексты.
+    const messages = uids.length > 0 ? await imap.fetchAll(uids.join(','), query, { uid: true }) : []
 
+    for (const message of messages) {
       const status = textPartStatus(message.bodyStructure)
       let text = ''
       if (status.part) {

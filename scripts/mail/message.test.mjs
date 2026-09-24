@@ -8,6 +8,7 @@ import {
   isBulk,
   parseHeaderLines,
   pickTextPart,
+  selectUids,
   textPartStatus,
 } from './message.mjs'
 
@@ -188,5 +189,21 @@ describe('строка письма для базы', () => {
 
   it('непрочитанное письмо приходит без отметки о прочтении', () => {
     expect(buildMessageRow({ ...base, flags: [] }).read_at).toBeNull()
+  })
+})
+
+describe('отбор писем из найденных', () => {
+  it('берёт старые первыми и не больше предела', () => {
+    expect(selectUids([30, 10, 20, 40], { mode: 'since', limit: 2 })).toEqual([10, 20])
+  })
+
+  it('в режиме по UID отсекает уже забранное, даже если сервер вернул последнее письмо', () => {
+    expect(selectUids([42], { mode: 'uid', lastUid: 42, limit: 200 })).toEqual([])
+    expect(selectUids([42, 43, 44], { mode: 'uid', lastUid: 42, limit: 200 })).toEqual([43, 44])
+  })
+
+  it('убирает повторы и переживает пустой ответ поиска', () => {
+    expect(selectUids([5, 5, '6'], { mode: 'since', limit: 10 })).toEqual([5, 6])
+    expect(selectUids(false, { mode: 'since', limit: 10 })).toEqual([])
   })
 })
