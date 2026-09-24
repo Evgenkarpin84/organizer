@@ -2,12 +2,32 @@
 import { createClient } from '@supabase/supabase-js'
 import { ImapFlow } from 'imapflow'
 import { maskSecrets, parseAccounts, parseArgs, providerTitle, readOptions } from './mail/config.mjs'
-import { buildMessageRow, fetchRange, htmlToPlainText, parseHeaderLines, selectUids, textPartStatus } from './mail/message.mjs'
-import { loadAccounts, saveAccountError, saveAccountState, upsertMessages } from './mail/store.mjs'
+import {
+  TOO_LARGE_PREVIEW,
+  buildMessageRow,
+  fetchRange,
+  htmlToPlainText,
+  messageText,
+  parseHeaderLines,
+  planSave,
+  selectUids,
+  textPartStatus,
+} from './mail/message.mjs'
+import {
+  loadAccounts,
+  loadEmptyBodies,
+  saveAccountError,
+  saveAccountState,
+  saveMessageText,
+  upsertMessages,
+} from './mail/store.mjs'
 
 const HEADER_FIELDS = ['list-unsubscribe', 'list-id', 'precedence']
 const SOCKET_TIMEOUT_MS = 30_000
 const MAX_DOWNLOAD_BYTES = 256 * 1024
+// Столько сбоев скачивания подряд — значит, сервер ограничил доступ, и остальное лучше забрать позже.
+const MAX_FAILED_IN_ROW = 3
+const REFILL_PER_RUN = 50
 
 function fail(message) {
   console.error(message)
@@ -37,6 +57,53 @@ async function readStream(stream) {
     chunks.push(chunk)
   }
   return Buffer.concat(chunks).toString('utf8')
+}
+
+/** Текст одной части письма. Ошибка не бросается: что делать со сбоем, решает вызывающий. */
+async function downloadText(imap, uid, part) {
+  try {
+    const { content } = await imap.download(uid, part.part, { uid: true, maxBytes: MAX_DOWNLOAD_BYTES })
+    const raw = await readStream(content)
+    return { text: part.type === 'text/html' ? htmlToPlainText(raw) : raw, error: null }
+  } catch (cause) {
+    return { text: '', error: cause }
+  }
+}
+
+/** Дописывает текст письмам, у которых он не скачался в прошлые запуски. Возвращает число дописанных. */
+async function refillEmptyBodies({ imap, client, accountRow, mailbox, options, runtime, nowIso }) {
+  // Номера писем действительны, только пока у папки та же uid_validity.
+  if (!accountRow?.id || String(accountRow.uid_validity ?? '') !== String(mailbox.uidValidity)) return 0
+
+  const sinceIso = new Date(new Date(nowIso).getTime() - runtime.backfillDays * 86_400_000).toISOString()
+  const empties = await loadEmptyBodies(client, {
+    accountId: accountRow.id,
+    sinceIso,
+    limit: REFILL_PER_RUN,
+    tooLargePreview: TOO_LARGE_PREVIEW,
+  })
+  if (empties.length === 0) return 0
+
+  const structures = await imap.fetchAll(empties.map((row) => row.uid).join(','), { uid: true, bodyStructure: true }, { uid: true })
+  const byUid = new Map(structures.map((message) => [Number(message.uid), message]))
+
+  let refilled = 0
+  for (const row of empties) {
+    const status = textPartStatus(byUid.get(Number(row.uid))?.bodyStructure)
+    if (!status.part) continue
+
+    const got = await downloadText(imap, row.uid, status.part)
+    if (got.error) {
+      if (!imap.usable) break
+      continue
+    }
+
+    const fields = messageText({ text: got.text, textReason: 'ok', bulk: row.is_bulk })
+    if (!fields.body_text) continue
+    await saveMessageText(client, { id: row.id, fields, dryRun: options.dryRun })
+    refilled += 1
+  }
+  return refilled
 }
 
 async function syncAccount({ client, account, accountRow, options, runtime, nowIso }) {
@@ -74,28 +141,25 @@ async function syncAccount({ client, account, accountRow, options, runtime, nowI
       headers: HEADER_FIELDS,
     }
 
-    const rows = []
-    let maxUid = plan.reset || plan.mode === 'since' ? 0 : Number(accountRow?.last_uid ?? 0)
-
     // imapflow выполняет команды по очереди: download внутри цикла fetch ждал бы конца FETCH,
     // а FETCH — следующего шага цикла, и процесс молча завершался. Поэтому сначала заголовки, потом тексты.
     const messages = uids.length > 0 ? await imap.fetchAll(uids.join(','), query, { uid: true }) : []
+    messages.sort((a, b) => Number(a.uid) - Number(b.uid))
+
+    const results = []
+    let failedInRow = 0
+    let stopped = false
 
     for (const message of messages) {
       const status = textPartStatus(message.bodyStructure)
-      let text = ''
-      if (status.part) {
-        try {
-          const { content } = await imap.download(message.uid, status.part.part, { uid: true, maxBytes: MAX_DOWNLOAD_BYTES })
-          const raw = await readStream(content)
-          text = status.part.type === 'text/html' ? htmlToPlainText(raw) : raw
-        } catch (cause) {
-          if (options.verbose) console.error(`  письмо ${message.uid}: не удалось получить текст — ${cause?.message ?? cause}`)
-        }
+      const got = status.part ? await downloadText(imap, message.uid, status.part) : { text: '', error: null }
+      if (got.error && options.verbose) {
+        console.error(`  письмо ${message.uid}: не удалось получить текст — ${got.error?.message ?? got.error}`)
       }
 
-      rows.push(
-        buildMessageRow({
+      results.push({
+        failed: Boolean(got.error),
+        row: buildMessageRow({
           userId: runtime.ownerUserId,
           accountId: accountRow?.id ?? null,
           accountKey: account.key,
@@ -105,15 +169,25 @@ async function syncAccount({ client, account, accountRow, options, runtime, nowI
           flags: message.flags,
           size: message.size ?? null,
           headers: parseHeaderLines(message.headers?.toString?.('utf8') ?? ''),
-          text,
+          text: got.text,
           textReason: status.reason,
           bodyStructure: message.bodyStructure,
           nowIso,
         }),
-      )
+      })
 
-      if (Number(message.uid) > maxUid) maxUid = Number(message.uid)
+      // Несколько сбоев подряд или оборванное соединение: дальше качать бессмысленно.
+      failedInRow = got.error ? failedInRow + 1 : 0
+      if (failedInRow >= MAX_FAILED_IN_ROW || (got.error && !imap.usable)) {
+        stopped = true
+        break
+      }
     }
+
+    // Сбои в хвосте не сохраняются и не сдвигают last_uid: следующий запуск заберёт эти письма заново.
+    const { rows, deferred } = planSave(results)
+    const startUid = plan.reset || plan.mode === 'since' ? 0 : Number(accountRow?.last_uid ?? 0)
+    const maxUid = rows.reduce((max, row) => Math.max(max, row.uid), startUid)
 
     const result = await upsertMessages(client, rows, { dryRun: options.dryRun })
     await saveAccountState(client, {
@@ -124,7 +198,9 @@ async function syncAccount({ client, account, accountRow, options, runtime, nowI
       dryRun: options.dryRun,
     })
 
-    return { found: rows.length, ...result }
+    const refilled = stopped ? 0 : await refillEmptyBodies({ imap, client, accountRow, mailbox, options, runtime, nowIso })
+
+    return { found: rows.length, deferred: deferred + (messages.length - results.length), refilled, ...result }
   } finally {
     await imap.logout().catch(() => imap.close())
   }
@@ -196,7 +272,11 @@ async function main() {
       const result = await syncAccount({ client, account, accountRow, options, runtime, nowIso })
       total += options.dryRun ? result.wouldInsert : result.inserted
       const verb = options.dryRun ? 'будет добавлено' : 'добавлено'
-      console.log(`${account.label}: получено ${result.found}, ${verb} ${options.dryRun ? result.wouldInsert : result.inserted}`)
+      const extras = []
+      if (result.refilled > 0) extras.push(`${options.dryRun ? 'будет дописан' : 'дописан'} текст у ${result.refilled}`)
+      if (result.deferred > 0) extras.push(`отложено ${result.deferred} — сервер не отдал текст, заберу в следующий раз`)
+      const tail = extras.length > 0 ? `, ${extras.join(', ')}` : ''
+      console.log(`${account.label}: получено ${result.found}, ${verb} ${options.dryRun ? result.wouldInsert : result.inserted}${tail}`)
     } catch (cause) {
       failures += 1
       const reason = describeImapError(cause, secrets)

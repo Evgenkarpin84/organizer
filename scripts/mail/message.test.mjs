@@ -6,10 +6,14 @@ import {
   fetchRange,
   htmlToPlainText,
   isBulk,
+  MAX_BULK_TEXT_CHARS,
+  messageText,
   parseHeaderLines,
   pickTextPart,
+  planSave,
   selectUids,
   textPartStatus,
+  TOO_LARGE_PREVIEW,
 } from './message.mjs'
 
 describe('ключ дедупликации', () => {
@@ -205,5 +209,45 @@ describe('отбор писем из найденных', () => {
   it('убирает повторы и переживает пустой ответ поиска', () => {
     expect(selectUids([5, 5, '6'], { mode: 'since', limit: 10 })).toEqual([5, 6])
     expect(selectUids(false, { mode: 'since', limit: 10 })).toEqual([])
+  })
+})
+
+describe('текстовые поля письма', () => {
+  it('чистит переводы строк и собирает превью в одну строку', () => {
+    const fields = messageText({ text: '  Привет,\r\n\r\nмир  ' })
+    expect(fields).toEqual({ body_text: 'Привет,\n\nмир', preview: 'Привет, мир', body_truncated: false })
+  })
+
+  it('у рассылки текст короче и помечен обрезанным', () => {
+    const fields = messageText({ text: 'а'.repeat(MAX_BULK_TEXT_CHARS + 10), bulk: true })
+    expect(fields.body_text).toHaveLength(MAX_BULK_TEXT_CHARS)
+    expect(fields.body_truncated).toBe(true)
+  })
+
+  it('слишком большой текст не сохраняется, но превью объясняет почему', () => {
+    const fields = messageText({ text: 'что угодно', textReason: 'too-large' })
+    expect(fields).toEqual({ body_text: '', preview: TOO_LARGE_PREVIEW, body_truncated: true })
+  })
+})
+
+describe('что сохранять после скачивания текстов', () => {
+  const ok = (uid) => ({ failed: false, row: { uid } })
+  const bad = (uid) => ({ failed: true, row: { uid } })
+
+  it('без сбоев сохраняет всё', () => {
+    expect(planSave([ok(1), ok(2)])).toEqual({ rows: [{ uid: 1 }, { uid: 2 }], deferred: 0 })
+  })
+
+  it('одиночный сбой посреди списка сохраняет с пустым текстом — его дозагрузит следующий запуск', () => {
+    expect(planSave([ok(1), bad(2), ok(3)])).toEqual({ rows: [{ uid: 1 }, { uid: 2 }, { uid: 3 }], deferred: 0 })
+  })
+
+  it('сбои в хвосте откладывает целиком', () => {
+    expect(planSave([ok(1), bad(2), bad(3), bad(4)])).toEqual({ rows: [{ uid: 1 }], deferred: 3 })
+  })
+
+  it('если не скачалось ничего, не сохраняет ничего', () => {
+    expect(planSave([bad(1), bad(2)])).toEqual({ rows: [], deferred: 2 })
+    expect(planSave([])).toEqual({ rows: [], deferred: 0 })
   })
 })

@@ -81,6 +81,36 @@ export async function upsertMessages(client, rows, { dryRun = false, chunkSize =
   return { inserted, skipped, wouldInsert: rows.length }
 }
 
+/**
+ * Письма, у которых текст не скачался: пустой текст не из-за размера. Берутся самые свежие
+ * в окне первого прохода — старые сбои со временем перестают перебираться.
+ */
+export async function loadEmptyBodies(client, { accountId, sinceIso, limit, tooLargePreview }) {
+  if (!accountId) return []
+  const { data, error } = await client
+    .from('mail_messages')
+    .select('id, uid, is_bulk')
+    .eq('account_id', accountId)
+    .eq('body_text', '')
+    .neq('preview', tooLargePreview)
+    .gte('received_at', sinceIso)
+    .order('received_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new Error(`Не удалось найти письма без текста: ${error.message}`)
+  return data ?? []
+}
+
+/** Дозаписывает текст письма. «Прочитано» и «в архиве» не трогаются. */
+export async function saveMessageText(client, { id, fields, dryRun = false }) {
+  if (dryRun) return false
+  const { error } = await client
+    .from('mail_messages')
+    .update({ body_text: fields.body_text, preview: fields.preview, body_truncated: fields.body_truncated })
+    .eq('id', id)
+  if (error) throw new Error(`Не удалось дописать текст письма: ${error.message}`)
+  return true
+}
+
 function isUniqueViolation(error) {
   return error?.code === '23505' || /duplicate key value/i.test(error?.message ?? '')
 }

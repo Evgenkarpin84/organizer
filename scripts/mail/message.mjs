@@ -165,6 +165,29 @@ function toIso(value) {
 }
 
 /** Строка для таблицы mail_messages. HTML и вложения сюда не попадают. */
+export const TOO_LARGE_PREVIEW = 'Текст письма не сохранён (слишком большой)'
+
+/** Текстовые поля письма: общие для первой записи и для дозагрузки текста. */
+export function messageText({ text = '', textReason = 'ok', bulk = false }) {
+  const limit = bulk ? MAX_BULK_TEXT_CHARS : MAX_TEXT_CHARS
+  const cleaned = String(text ?? '').replace(/\r\n/g, '\n').trim()
+  const truncated = cleaned.length > limit
+  const body = textReason === 'ok' ? cleaned.slice(0, limit) : ''
+  const preview = textReason === 'too-large' ? TOO_LARGE_PREVIEW : body.replace(/\s+/g, ' ').trim().slice(0, MAX_PREVIEW_CHARS)
+  return { body_text: body, preview, body_truncated: truncated || textReason !== 'ok' }
+}
+
+/**
+ * Что сохранять после прохода по письмам. Одиночный сбой скачивания посреди списка
+ * сохраняется с пустым текстом (его потом дозагрузит следующий запуск), а сбои в хвосте
+ * откладываются целиком: скорее всего, сервер ограничил доступ, и эти письма лучше забрать заново.
+ */
+export function planSave(results) {
+  let end = results.length
+  while (end > 0 && results[end - 1].failed) end -= 1
+  return { rows: results.slice(0, end).map((result) => result.row), deferred: results.length - end }
+}
+
 export function buildMessageRow({
   userId,
   accountId,
@@ -181,14 +204,7 @@ export function buildMessageRow({
   nowIso = new Date().toISOString(),
 }) {
   const bulk = isBulk(headers)
-  const limit = bulk ? MAX_BULK_TEXT_CHARS : MAX_TEXT_CHARS
-  const cleaned = String(text ?? '').replace(/\r\n/g, '\n').trim()
-  const truncated = cleaned.length > limit
-  const body = textReason === 'ok' ? cleaned.slice(0, limit) : ''
-  const preview =
-    textReason === 'too-large'
-      ? 'Текст письма не сохранён (слишком большой)'
-      : body.replace(/\s+/g, ' ').trim().slice(0, MAX_PREVIEW_CHARS)
+  const textFields = messageText({ text, textReason, bulk })
 
   const from = firstAddress(envelope.from)
   const receivedAt = toIso(internalDate) ?? toIso(envelope.date) ?? nowIso
@@ -216,9 +232,7 @@ export function buildMessageRow({
       .slice(0, 10),
     sent_at: toIso(envelope.date),
     received_at: receivedAt,
-    preview,
-    body_text: body,
-    body_truncated: truncated || textReason !== 'ok',
+    ...textFields,
     has_attachments: names.length > 0,
     attachment_names: names,
     is_bulk: bulk,

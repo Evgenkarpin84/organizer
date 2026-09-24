@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { loadAccounts, saveAccountError, saveAccountState, upsertMessages } from './store.mjs'
+import {
+  loadAccounts,
+  loadEmptyBodies,
+  saveAccountError,
+  saveAccountState,
+  saveMessageText,
+  upsertMessages,
+} from './store.mjs'
 
 /** Подставной клиент Supabase: записывает вызовы и отдаёт заранее заданные ответы. */
 function makeClient({ selectData = [], insertData = [], upsertData = null } = {}) {
@@ -13,6 +20,22 @@ function makeClient({ selectData = [], insertData = [], upsertData = null } = {}
       },
       eq(column, value) {
         calls.push({ method: 'eq', table, column, value })
+        return chain
+      },
+      neq(column, value) {
+        calls.push({ method: 'neq', table, column, value })
+        return chain
+      },
+      gte(column, value) {
+        calls.push({ method: 'gte', table, column, value })
+        return chain
+      },
+      order(column, options) {
+        calls.push({ method: 'order', table, column, options })
+        return chain
+      },
+      limit(count) {
+        calls.push({ method: 'limit', table, count })
         return chain
       },
       insert(rows) {
@@ -149,5 +172,50 @@ describe('состояние ящика', () => {
     const client = makeClient()
     await saveAccountError(client, { accountId: '1', message: 'Неверный пароль приложения', nowIso: 'now' })
     expect(client.calls.find((call) => call.method === 'update').patch.last_error).toContain('Неверный пароль')
+  })
+})
+
+describe('дозагрузка текста', () => {
+  it('ищет письма с пустым текстом этого ящика, кроме слишком больших, свежие первыми', async () => {
+    const client = makeClient({ selectData: [{ id: 'm1', uid: 7, is_bulk: false }] })
+    const rows = await loadEmptyBodies(client, {
+      accountId: 'a1',
+      sinceIso: '2026-08-26T00:00:00.000Z',
+      limit: 50,
+      tooLargePreview: 'слишком большой',
+    })
+    expect(rows).toEqual([{ id: 'm1', uid: 7, is_bulk: false }])
+    expect(client.calls).toEqual(
+      expect.arrayContaining([
+        { method: 'eq', table: 'mail_messages', column: 'account_id', value: 'a1' },
+        { method: 'eq', table: 'mail_messages', column: 'body_text', value: '' },
+        { method: 'neq', table: 'mail_messages', column: 'preview', value: 'слишком большой' },
+        { method: 'gte', table: 'mail_messages', column: 'received_at', value: '2026-08-26T00:00:00.000Z' },
+        { method: 'order', table: 'mail_messages', column: 'received_at', options: { ascending: false } },
+        { method: 'limit', table: 'mail_messages', count: 50 },
+      ]),
+    )
+  })
+
+  it('без строки ящика в базе ничего не ищет', async () => {
+    const client = makeClient()
+    expect(await loadEmptyBodies(client, { accountId: null, sinceIso: 'x', limit: 5, tooLargePreview: 'y' })).toEqual([])
+    expect(client.calls).toEqual([])
+  })
+
+  it('дописывает только текстовые поля, «прочитано» и «в архиве» не трогает', async () => {
+    const client = makeClient()
+    const fields = { body_text: 'Текст', preview: 'Текст', body_truncated: false }
+    expect(await saveMessageText(client, { id: 'm1', fields })).toBe(true)
+    const update = client.calls.find((call) => call.method === 'update')
+    expect(update.patch).toEqual(fields)
+    expect(client.calls).toContainEqual({ method: 'eq', table: 'mail_messages', column: 'id', value: 'm1' })
+  })
+
+  it('в dry-run текст не пишет', async () => {
+    const client = makeClient()
+    const fields = { body_text: 'Текст', preview: 'Текст', body_truncated: false }
+    expect(await saveMessageText(client, { id: 'm1', fields, dryRun: true })).toBe(false)
+    expect(client.calls).toEqual([])
   })
 })
