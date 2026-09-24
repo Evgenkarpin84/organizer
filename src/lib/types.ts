@@ -64,6 +64,54 @@ export interface MailMessage {
   archivedAt: string | null
 }
 
+export type HabitGoalType = 'daily' | 'times_per_week' | 'weekdays'
+
+export interface Habit {
+  id: string
+  title: string
+  note: string | null
+  goalType: HabitGoalType
+  goalTimes: number
+  goalWeekdays: number[]
+  position: number
+  archivedAt: string | null
+}
+
+/** Отметки приходят плоским списком за окно HABIT_WINDOW_DAYS. */
+export interface HabitEntry {
+  habitId: string
+  doneOn: string
+}
+
+export interface HabitDraft {
+  title: string
+  note: string | null
+  goalType: HabitGoalType
+  goalTimes: number
+  goalWeekdays: number[]
+}
+
+export function emptyHabitDraft(): HabitDraft {
+  return { title: '', note: null, goalType: 'daily', goalTimes: 3, goalWeekdays: [] }
+}
+
+export interface Checklist {
+  id: string
+  title: string
+  position: number
+  startedAt: string | null
+  lastCompletedAt: string | null
+  archivedAt: string | null
+}
+
+export interface ChecklistItem {
+  id: string
+  checklistId: string
+  text: string
+  position: number
+  checkedAt: string | null
+}
+
 export interface NewsSource {
   id: string
   key: string

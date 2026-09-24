@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { HabitsToday } from '../components/HabitsToday'
 import { QuickAdd } from '../components/QuickAdd'
 import { Section } from '../components/Section'
 import { TaskItem } from '../components/TaskItem'
@@ -24,6 +25,8 @@ export function TodayScreen() {
     <>
       <QuickAdd lists={lists} todayIso={todayIso} onAdd={addTask} disabled={loading || blocked} />
       {blocked ? <p className="mb-2 text-xs text-slate-500">Нет данных с сервера — добавление недоступно.</p> : null}
+
+      <HabitsToday todayIso={todayIso} />
 
       {error ? (
         <div className="mt-2">
