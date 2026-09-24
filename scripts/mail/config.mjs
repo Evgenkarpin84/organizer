@@ -24,7 +24,8 @@ export function parseAccounts(env) {
     const provider = (env[`${prefix}PROVIDER`] ?? '').trim().toLowerCase()
     const password = env[`${prefix}PASSWORD`] ?? ''
 
-    if (!email && !provider && !password) continue
+    // Блок без адреса и пароля — неиспользуемый, даже если провайдер заполнен заранее, как в .env.example.
+    if (!email && !password) continue
 
     if (!email) {
       errors.push(`${prefix}EMAIL: не задан адрес ящика`)

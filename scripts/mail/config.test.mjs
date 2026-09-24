@@ -39,6 +39,18 @@ describe('настройки ящиков', () => {
     expect(errors.join(' ')).not.toContain('app-password')
   })
 
+  it('блок с одним провайдером, без адреса и пароля, считается пустым, а не ошибкой', () => {
+    const { accounts, errors } = parseAccounts({
+      MAIL_1_PROVIDER: 'mailru',
+      MAIL_1_EMAIL: 'a@bk.ru',
+      MAIL_1_PASSWORD: 'secret',
+      MAIL_2_PROVIDER: 'mailru',
+      MAIL_2_LABEL: 'Запасной',
+    })
+    expect(errors).toEqual([])
+    expect(accounts.map((account) => account.key)).toEqual(['mail1'])
+  })
+
   it('сообщает о неизвестном провайдере', () => {
     const { errors } = parseAccounts({ MAIL_1_PROVIDER: 'gmail', MAIL_1_EMAIL: 'a@gmail.com', MAIL_1_PASSWORD: 'x' })
     expect(errors[0]).toContain('неизвестный провайдер')
