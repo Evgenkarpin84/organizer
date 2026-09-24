@@ -27,7 +27,7 @@ npm run dev
 1. **Схема.** Выполнить `supabase/migrations/0001_init.sql` в SQL Editor проекта. Скрипт создаёт таблицы `lists` и `tasks`, индексы, триггер `updated_at` и политики RLS: каждая строка видна только своему владельцу.
 2. **Пользователь-владелец.** Authentication → Users → Add user → Create new user: адрес почты, пароль (с ним и будете входить), галочка «Auto Confirm User».
 3. **Закрыть регистрацию.** Authentication → Sign In / Providers → Email → выключить «Allow new users to sign up».
-4. **Вход по паролю.** Приложение использует `signInWithPassword`, письма Supabase не задействованы. Причина: на бесплатном тарифе шаблоны писем нельзя редактировать без своего SMTP («Set up custom SMTP to edit templates»), а у встроенной почты жёсткий лимит на письма. Вход по коду вернётся, когда будет подключён SMTP — пункт есть в `BACKLOG.md`. Сменить пароль: Authentication → Users → пользователь → Reset password. Ссылка на Android открывается в браузере, а не в установленном приложении, поэтому вход сделан по коду.
+4. **Вход по паролю.** Приложение использует `signInWithPassword`, письма Supabase не задействованы. Причина: на бесплатном тарифе шаблоны писем нельзя редактировать без своего SMTP («Set up custom SMTP to edit templates»), а у встроенной почты жёсткий лимит на письма. Вход по коду вернётся, когда будет подключён SMTP — пункт есть в `BACKLOG.md`. Сменить пароль: Authentication → Users → пользователь → Reset password.
 
 ## Push-напоминания
 
@@ -38,9 +38,9 @@ npm run dev
 3. **Секреты функции.** В настройках Edge Functions задать `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (вида `mailto:почта@владельца`) и `REMINDERS_CRON_SECRET` (случайная строка).
 4. **Деплой функции:**
    ```bash
-   npx supabase functions deploy send-reminders --no-verify-jwt
+   npx supabase functions deploy send-reminders --project-ref <id-проекта> --no-verify-jwt --use-api
    ```
-   Проверка JWT отключена намеренно: вызов идёт из `pg_cron`, доступ закрывает секрет в заголовке `x-cron-secret`.
+   Проверка JWT отключена намеренно: вызов идёт из `pg_cron`, доступ закрывает секрет в заголовке `x-cron-secret`. `--use-api` собирает функцию на стороне Supabase, Docker не нужен.
 5. **Расписание.** Раскомментировать секцию в конце миграции, подставив идентификатор проекта и значение `REMINDERS_CRON_SECRET`, и выполнить её. Отключается командой `select cron.unschedule('send-reminders');`, журнал запусков — в `cron.job_run_details`.
 6. **Сборка и публикация:** `npm run deploy` — публичный ключ попадёт в бандл.
 7. **На телефоне:** открыть приложение → шестерёнка в шапке → «Включить уведомления».
@@ -215,6 +215,10 @@ npm run news
 | `npm run lint` | ESLint |
 | `npm run typecheck` | Только проверка типов |
 | `npm run icons` | Генерация иконок PWA в `public/icons` |
+| `npm run vapid` | Пара ключей VAPID для push-уведомлений |
+| `npm run mail` | Сбор писем по IMAP (`-- --check`, `-- --dry-run`) |
+| `npm run news` | Сбор новостей по лентам (`-- --check`, `-- --dry-run`) |
+| `npm run doctor` | Состояние всего органайзера одной сводкой: `.env`, таблицы, функция напоминаний и подписки, свежесть почты и новостей, задания Планировщика. Только чтение, секреты не печатает; код выхода 1, если есть ошибки |
 
 ## Сайт и установка на телефон
 
